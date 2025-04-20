@@ -1,0 +1,162 @@
+/* src/components/CardModal.css */
+.popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  
+  .popup-content {
+    background-color: white;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    width: 500px;
+    max-width: 90%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #ebecf0;
+    flex-shrink: 0;
+  }
+  
+  .popup-title {
+    font-weight: bold;
+    font-size: 18px;
+    color: #172b4d;
+  }
+  
+  .popup-close {
+    cursor: pointer;
+    font-size: 22px;
+    color: #6b778c;
+  }
+  
+  .popup-body {
+    padding: 0 20px;
+    overflow-y: auto;
+    max-height: calc(80vh - 140px);
+  }
+  
+  .popup-labels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 15px;
+  }
+  
+  .popup-label {
+    height: 8px;
+    width: 40px;
+    border-radius: 4px;
+    margin-right: 5px;
+  }
+  
+  .popup-description {
+    margin: 15px 0;
+    padding: 10px;
+    background-color: #f4f5f7;
+    border-radius: 3px;
+    color: #172b4d;
+  }
+  
+  .popup-meta {
+    display: flex;
+    font-size: 0.9em;
+    color: #5e6c84;
+    gap: 8px;
+    margin: 15px 0;
+  }
+  
+  .popup-actions {
+    border-top: 1px solid #ebecf0;
+    padding: 15px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-shrink: 0;
+    background-color: white;
+  }
+  
+  .popup-caption {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #dfe1e6;
+    border-radius: 3px;
+    margin-bottom: 10px;
+    min-height: 60px;
+    resize: vertical;
+  }
+  
+  .popup-buttons {
+    display: flex;
+    gap: 10px;
+  }
+  
+  .popup-open-trello, .popup-send-to-chat {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    flex: 1;
+  }
+  
+  .popup-open-trello {
+    background-color: #ebecf0;
+    color: #172b4d;
+  }
+  
+  .popup-open-trello:hover {
+    background-color: #dfe1e6;
+  }
+  
+  .popup-send-to-chat {
+    background-color: #0079bf;
+    color: white;
+  }
+  
+  .popup-send-to-chat:hover {
+    background-color: #026aa7;
+  }
+  
+  .webhook-selector {
+    width: 100%;
+    padding: 8px;
+    border-radius: 3px;
+    border: 1px solid #dfe1e6;
+    margin-bottom: 10px;
+  }
+  
+  .webhook-selector-label {
+    display: block;
+    margin-top: 10px;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #172b4d;
+  }
+  
+  .popup-send-status {
+    margin-top: 10px;
+    font-size: 0.9em;
+    text-align: center;
+  }
+  
+  .status-success {
+    color: #61bd4f;
+  }
+  
+  .status-error {
+    color: #eb5a46;
+  }

@@ -1,0 +1,37 @@
+.trello-card {
+    background-color: white;
+    border-radius: 3px;
+    box-shadow: 0 1px 0 rgba(9,30,66,.25);
+    padding: 10px;
+    margin-bottom: 8px;
+    cursor: pointer;
+  }
+  
+  .trello-card:hover {
+    background-color: #f7f8f9;
+  }
+  
+  .card-title {
+    margin-bottom: 5px;
+  }
+  
+  .card-labels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  
+  .card-label {
+    height: 8px;
+    width: 40px;
+    border-radius: 4px;
+  }
+  
+  .card-meta {
+    display: flex;
+    font-size: 0.8em;
+    color: #5e6c84;
+    gap: 8px;
+    margin-top: 5px;
+  }

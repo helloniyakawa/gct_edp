@@ -1,0 +1,29 @@
+/* src/components/TrelloList.css */
+.dashboard .trello-list {
+    background-color: #ebecf0;
+    border-radius: 3px;
+    width: 270px;
+    min-width: 270px;
+    max-height: 80vh; /* Set a maximum height */
+    overflow-y: auto; /* Enable vertical scrolling within each list */
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .list-cards {
+    overflow-y: auto; /* Enable scrolling for cards */
+    flex-grow: 1;
+  }
+  
+  .list-header {
+    font-weight: bold;
+    margin-bottom: 10px;
+    padding: 5px;
+  }
+  
+  .list-empty-message {
+    color: #5e6c84;
+    padding: 8px;
+    font-style: italic;
+  }
