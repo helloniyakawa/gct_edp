@@ -178,10 +178,11 @@ app.post('/api/auth/login', async (req, res) => {
     console.log('Creating token...');
     try {
       const token = jwt.sign(
-        { _id: user._id, name: user.name, email: user.email },
+        { _id: user._id, name: user.name, email: user.email, role: user.role },
         process.env.JWT_SECRET,
         { expiresIn: '24h' }
       );
+      
       console.log('Token created successfully');
       
       res.status(200).json({
@@ -189,7 +190,8 @@ app.post('/api/auth/login', async (req, res) => {
         user: {
           id: user._id,
           name: user.name,
-          email: user.email
+          email: user.email,
+          role: user.role // Add this line
         }
       });
     } catch (tokenError) {

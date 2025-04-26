@@ -1,3 +1,4 @@
+// src/components/UserManager.js
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import './UserManager.css';
@@ -17,6 +18,7 @@ const UserManager = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
+      // Fetch both users and webhooks simultaneously
       const [usersResponse, webhooksResponse] = await Promise.all([
         api.get('/api/users'),
         api.get('/api/google/chat/webhooks')
@@ -24,7 +26,6 @@ const UserManager = () => {
       
       setUsers(usersResponse.data);
       setWebhooks(webhooksResponse.data);
-      setError('');
     } catch (err) {
       setError('Failed to load data: ' + (err.response?.data?.message || err.message));
     } finally {
@@ -34,6 +35,7 @@ const UserManager = () => {
 
   const handleUserSelect = (user) => {
     setSelectedUser(user);
+    // Initialize selected webhooks based on user's current access
     setSelectedWebhooks(user.accessibleWebhooks || []);
   };
 
@@ -48,6 +50,8 @@ const UserManager = () => {
   };
 
   const handleSaveAccess = async () => {
+    if (!selectedUser) return;
+    
     try {
       await api.put(`/api/users/${selectedUser._id}/webhooks`, {
         webhookIds: selectedWebhooks
@@ -61,17 +65,18 @@ const UserManager = () => {
       ));
       
       setError('');
-      alert('Webhook access updated successfully');
+      alert('User webhook access updated successfully');
     } catch (err) {
       setError('Failed to update access: ' + (err.response?.data?.message || err.message));
     }
   };
 
-  if (loading) return <div className="loading-indicator">Loading...</div>;
+  if (loading) return <div className="loading-indicator">Loading data...</div>;
 
   return (
     <div className="user-manager">
       <h2>User Webhook Access Management</h2>
+      <p>Assign which webhooks each user can access</p>
       
       {error && <div className="error-message">{error}</div>}
       
@@ -86,7 +91,7 @@ const UserManager = () => {
                 onClick={() => handleUserSelect(user)}
               >
                 {user.name} ({user.email})
-                <span className="user-role">{user.role}</span>
+                <span className={`user-role ${user.role}`}>{user.role}</span>
               </li>
             ))}
           </ul>
@@ -96,27 +101,34 @@ const UserManager = () => {
           <div className="webhook-access">
             <h3>Webhook Access for {selectedUser.name}</h3>
             
-            <div className="webhook-checkboxes">
-              {webhooks.map(webhook => (
-                <div key={webhook._id} className="webhook-checkbox">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={selectedWebhooks.includes(webhook._id)}
-                      onChange={() => handleWebhookToggle(webhook._id)}
-                    />
-                    {webhook.name}
-                  </label>
+            {webhooks.length > 0 ? (
+              <>
+                <div className="webhook-checkboxes">
+                  {webhooks.map(webhook => (
+                    <div key={webhook._id} className="webhook-checkbox">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={selectedWebhooks.includes(webhook._id)}
+                          onChange={() => handleWebhookToggle(webhook._id)}
+                        />
+                        {webhook.name} 
+                        <span className="webhook-description">{webhook.description}</span>
+                      </label>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            
-            <button 
-              className="save-access-button"
-              onClick={handleSaveAccess}
-            >
-              Save Access Settings
-            </button>
+                
+                <button 
+                  className="save-access-button"
+                  onClick={handleSaveAccess}
+                >
+                  Save Access Settings
+                </button>
+              </>
+            ) : (
+              <p>No webhooks available. Please add webhooks first.</p>
+            )}
           </div>
         )}
       </div>

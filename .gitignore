@@ -2,6 +2,7 @@
 TestLogin.js
 test-mongo.js
 public
+generate-hash.js
 
 #database
 data
