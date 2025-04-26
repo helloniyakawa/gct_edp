@@ -131,9 +131,12 @@ useEffect(() => {
       <div className="navbar">
         <h1>Trello to Google Chat EDUPRIMA</h1>
         <div className="user-section">
-          <Link to="/webhooks" className="webhook-link">
-            Manage Webhooks
-          </Link>
+        {currentUser?.role === 'admin' && (
+          <>
+            <Link to="/webhooks" className="admin-link">Manage Webhooks</Link>
+            <Link to="/users" className="admin-link">Manage Users</Link>
+          </>
+        )}
           <span>{currentUser?.name || currentUser?.email}</span>
           <button onClick={logout} className="logout-button">Logout</button>
         </div>

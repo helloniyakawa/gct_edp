@@ -154,3 +154,18 @@
     background-color: rgba(255, 255, 255, 0.3);
     text-decoration: none;
   }
+
+  .admin-link {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 3px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    margin-right: 15px;
+  }
+  
+  .admin-link:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+    text-decoration: none;
+  }

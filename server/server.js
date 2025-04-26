@@ -32,7 +32,9 @@ mongoose.connect(process.env.MONGODB_URI, {
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
-  password: { type: String, required: true }
+  password: { type: String, required: true },
+  role: { type: String, enum: ['admin', 'user'], default: 'user' },
+  accessibleWebhooks: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Webhook' }]
 });
 
 const webhookSchema = new mongoose.Schema({
@@ -59,6 +61,64 @@ const authenticateToken = (req, res, next) => {
     return res.status(401).json({ message: 'Invalid token' });
   }
 };
+
+// Middleware to check if user is admin
+const isAdmin = (req, res, next) => {
+  if (req.user && req.user.role === 'admin') {
+    next();
+  } else {
+    res.status(403).json({ message: 'Access denied. Admin privileges required.' });
+  }
+};
+
+// Admin-only webhook management routes
+app.post('/api/google/chat/webhooks', authenticateToken, isAdmin, async (req, res) => {
+  // Create webhook code...
+});
+
+app.put('/api/google/chat/webhooks/:id', authenticateToken, isAdmin, async (req, res) => {
+  // Update webhook code...
+});
+
+app.delete('/api/google/chat/webhooks/:id', authenticateToken, isAdmin, async (req, res) => {
+  // Delete webhook code...
+});
+
+// Get all users (admin only)
+app.get('/api/users', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const users = await User.find({}).select('-password');
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Update user webhook access (admin only)
+app.put('/api/users/:userId/webhooks', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { webhookIds } = req.body;
+    
+    if (!Array.isArray(webhookIds)) {
+      return res.status(400).json({ message: 'webhookIds must be an array' });
+    }
+    
+    const user = await User.findByIdAndUpdate(
+      req.params.userId,
+      { accessibleWebhooks: webhookIds },
+      { new: true }
+    ).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 
 // Auth routes
 app.post('/api/auth/register', async (req, res) => {
@@ -195,7 +255,18 @@ app.get('/api/trello/boards/:boardId/lists', authenticateToken, async (req, res)
 // Get all webhooks
 app.get('/api/google/chat/webhooks', authenticateToken, async (req, res) => {
   try {
-    const webhooks = await Webhook.find({});
+    // Admins can see all webhooks
+    if (req.user.role === 'admin') {
+      const webhooks = await Webhook.find({});
+      return res.status(200).json(webhooks);
+    }
+    
+    // Regular users only see webhooks they have access to
+    const user = await User.findById(req.user._id);
+    const webhooks = await Webhook.find({
+      _id: { $in: user.accessibleWebhooks }
+    });
+    
     res.status(200).json(webhooks);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -413,5 +484,4 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-//test apakah ini masuk ke main branch
-//test lagi apakah ini bisa
+

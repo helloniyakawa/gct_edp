@@ -5,6 +5,7 @@ import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import WebhookManager from './components/WebhookManager';
+import UserManager from './components/UserManager';
 import './App.css';
 
 function App() {
@@ -13,6 +14,11 @@ function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/users" element={
+            <ProtectedRoute adminOnly={true}>
+              <UserManager />
+            </ProtectedRoute>
+          } />
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <Dashboard />
