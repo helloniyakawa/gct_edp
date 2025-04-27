@@ -14,7 +14,9 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(cors({
   origin: 'http://localhost:3000',
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
@@ -32,7 +34,9 @@ mongoose.connect(process.env.MONGODB_URI, {
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
-  password: { type: String, required: true }
+  password: { type: String, required: true },
+  role: { type: String, enum: ['admin', 'user'], default: 'user' },
+  accessibleWebhooks: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Webhook' }]
 });
 
 const webhookSchema = new mongoose.Schema({
@@ -59,6 +63,129 @@ const authenticateToken = (req, res, next) => {
     return res.status(401).json({ message: 'Invalid token' });
   }
 };
+
+// Middleware to check if user is admin
+const isAdmin = (req, res, next) => {
+  if (req.user && req.user.role === 'admin') {
+    next();
+  } else {
+    res.status(403).json({ message: 'Access denied. Admin privileges required.' });
+  }
+};
+
+app.get('/', (req, res) => {
+  res.send('API server is running');
+});
+
+// Admin-only webhook management routes
+app.post('/api/google/chat/webhooks', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { name, url, description } = req.body;
+    
+    if (!name || !url) {
+      return res.status(400).json({ message: 'Name and URL are required' });
+    }
+    
+    // Validate webhook URL format
+    if (!url.startsWith('https://chat.googleapis.com/v1/spaces/')) {
+      return res.status(400).json({ 
+        message: 'Invalid webhook URL format. Must start with https://chat.googleapis.com/v1/spaces/' 
+      });
+    }
+    
+    const webhook = new Webhook({
+      name,
+      url,
+      description: description || ''
+    });
+    
+    await webhook.save();
+    res.status(201).json(webhook);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+app.put('/api/google/chat/webhooks/:id', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { name, url, description } = req.body;
+    
+    if (!name || !url) {
+      return res.status(400).json({ message: 'Name and URL are required' });
+    }
+    
+    // Validate webhook URL format
+    if (!url.startsWith('https://chat.googleapis.com/v1/spaces/')) {
+      return res.status(400).json({ 
+        message: 'Invalid webhook URL format. Must start with https://chat.googleapis.com/v1/spaces/' 
+      });
+    }
+    
+    const updatedWebhook = await Webhook.findByIdAndUpdate(
+      req.params.id,
+      { name, url, description },
+      { new: true, runValidators: true }
+    );
+    
+    if (!updatedWebhook) {
+      return res.status(404).json({ message: 'Webhook not found' });
+    }
+    
+    res.status(200).json(updatedWebhook);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+app.delete('/api/google/chat/webhooks/:id', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const webhook = await Webhook.findByIdAndDelete(req.params.id);
+    
+    if (!webhook) {
+      return res.status(404).json({ message: 'Webhook not found' });
+    }
+    
+    res.status(200).json({ message: 'Webhook deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get all users (admin only)
+app.get('/api/users', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const users = await User.find({}).select('-password');
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Update user webhook access (admin only)
+app.put('/api/users/:userId/webhooks', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { webhookIds } = req.body;
+    
+    if (!Array.isArray(webhookIds)) {
+      return res.status(400).json({ message: 'webhookIds must be an array' });
+    }
+    
+    const user = await User.findByIdAndUpdate(
+      req.params.userId,
+      { accessibleWebhooks: webhookIds },
+      { new: true }
+    ).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 
 // Auth routes
 app.post('/api/auth/register', async (req, res) => {
@@ -118,10 +245,11 @@ app.post('/api/auth/login', async (req, res) => {
     console.log('Creating token...');
     try {
       const token = jwt.sign(
-        { _id: user._id, name: user.name, email: user.email },
+        { _id: user._id, name: user.name, email: user.email, role: user.role },
         process.env.JWT_SECRET,
         { expiresIn: '24h' }
       );
+      
       console.log('Token created successfully');
       
       res.status(200).json({
@@ -129,7 +257,8 @@ app.post('/api/auth/login', async (req, res) => {
         user: {
           id: user._id,
           name: user.name,
-          email: user.email
+          email: user.email,
+          role: user.role // Add this line
         }
       });
     } catch (tokenError) {
@@ -194,10 +323,23 @@ app.get('/api/trello/boards/:boardId/lists', authenticateToken, async (req, res)
 // Google Chat webhook routes
 // Get all webhooks
 app.get('/api/google/chat/webhooks', authenticateToken, async (req, res) => {
+  console.log('Webhook GET request received');
   try {
-    const webhooks = await Webhook.find({});
+    // Admins can see all webhooks
+    if (req.user.role === 'admin') {
+      const webhooks = await Webhook.find({});
+      return res.status(200).json(webhooks);
+    }
+    
+    // Regular users only see webhooks they have access to
+    const user = await User.findById(req.user._id);
+    const webhooks = await Webhook.find({
+      _id: { $in: user.accessibleWebhooks }
+    });
+    
     res.status(200).json(webhooks);
   } catch (error) {
+    console.error('Error in GET webhooks:', error);
     res.status(500).json({ message: error.message });
   }
 });

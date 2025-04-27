@@ -11,6 +11,7 @@ const CardModal = ({ card, onClose }) => {
   const [selectedWebhook, setSelectedWebhook] = useState('');
   
   useEffect(() => {
+    // Load available webhooks
     const fetchWebhooks = async () => {
       try {
         const response = await trelloService.getWebhooks();
@@ -18,7 +19,7 @@ const CardModal = ({ card, onClose }) => {
         
         // Set default webhook if available
         if (response.data.length > 0) {
-          setSelectedWebhook(response.data[0]._id); // Make sure this is using _id
+          setSelectedWebhook(response.data[0]._id);
         }
       } catch (error) {
         console.error('Failed to load webhooks:', error);
