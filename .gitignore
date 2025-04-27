@@ -1,8 +1,15 @@
-#filetest
 TestLogin.js
 test-mongo.js
 public
 generate-hash.js
+.dockerignore
+deploy.sh
+deployment-guide.md 
+docker-compose.yml
+dockerfile
+nginx.conf
+setup-cloudflare-tunnel.sh
+
 
 #database
 data
