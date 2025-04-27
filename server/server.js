@@ -6,18 +6,51 @@ const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const mongoose = require('mongoose');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const xss = require('xss-clean');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Security middleware
+app.use(helmet());
+app.use(mongoSanitize());
+app.use(xss());
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 900000, // 15 minutes
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later'
+});
+app.use('/api/', limiter);
+
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: process.env.NODE_ENV === 'production' 
+    ? (process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [])
+    : 'http://localhost:3000',
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  maxAge: 86400 // 24 hours
 }));
+
+// Handle preflight requests
+app.options('*', cors());
+
+// Add security headers middleware
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';");
+  next();
+});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -72,6 +105,16 @@ const isAdmin = (req, res, next) => {
     res.status(403).json({ message: 'Access denied. Admin privileges required.' });
   }
 };
+
+// Add request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  console.log('Request headers:', req.headers);
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log('Request body:', { ...req.body, password: '[REDACTED]' });
+  }
+  next();
+});
 
 app.get('/', (req, res) => {
   res.send('API server is running');
@@ -217,57 +260,69 @@ app.post('/api/auth/register', async (req, res) => {
 // In server.js, modify the login route
 app.post('/api/auth/login', async (req, res) => {
   try {
-    console.log('Login attempt:', req.body.email);
+    console.log('Login attempt for email:', req.body.email);
+    console.log('Request body received:', { ...req.body, password: '[REDACTED]' });
+    
+    // Validate request body
+    if (!req.body.email || !req.body.password) {
+      console.log('Missing email or password in request');
+      return res.status(400).json({ message: 'Email and password are required' });
+    }
     
     // Check if user exists
     const user = await User.findOne({ email: req.body.email });
     console.log('User found:', !!user);
-    if (!user) return res.status(401).json({ message: 'Email or password is incorrect' });
-    
-    // Test direct password comparison
-    console.log('User password hash:', user.password);
-    console.log('Entered password:', req.body.password);
+    if (!user) {
+      console.log('User not found with email:', req.body.email);
+      return res.status(401).json({ message: 'Email or password is incorrect' });
+    }
     
     // Validate password
-    console.log('Validating password...');
+    console.log('Attempting password validation...');
     const validPassword = await bcrypt.compare(req.body.password, user.password);
-    console.log('Password valid:', validPassword);
-    if (!validPassword) return res.status(401).json({ message: 'Email or password is incorrect' });
+    console.log('Password validation result:', validPassword);
+    
+    if (!validPassword) {
+      console.log('Invalid password for user:', req.body.email);
+      return res.status(401).json({ message: 'Email or password is incorrect' });
+    }
     
     // Check JWT_SECRET
-    console.log('JWT_SECRET is set:', !!process.env.JWT_SECRET);
     if (!process.env.JWT_SECRET) {
       console.error('JWT_SECRET is missing in .env file');
       return res.status(500).json({ message: 'Server configuration error' });
     }
     
     // Create token
-    console.log('Creating token...');
-    try {
-      const token = jwt.sign(
-        { _id: user._id, name: user.name, email: user.email, role: user.role },
-        process.env.JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-      
-      console.log('Token created successfully');
-      
-      res.status(200).json({
-        token,
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role // Add this line
-        }
-      });
-    } catch (tokenError) {
-      console.error('Error creating token:', tokenError);
-      return res.status(500).json({ message: 'Error creating authentication token' });
-    }
+    console.log('Creating JWT token...');
+    const token = jwt.sign(
+      { 
+        _id: user._id, 
+        name: user.name, 
+        email: user.email, 
+        role: user.role 
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRATION || '24h' }
+    );
+    
+    console.log('Login successful for user:', user.email);
+    
+    res.status(200).json({
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ 
+      message: 'An error occurred during login',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
   }
 });
 
