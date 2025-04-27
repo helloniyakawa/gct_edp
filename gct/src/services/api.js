@@ -10,16 +10,16 @@ const api = axios.create({
 });
 
 // Add request interceptor for handling errors globally
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    // Handle 401 Unauthorized errors (expired token)
-    if (error.response && error.response.status === 401) {
-      localStorage.removeItem('token');
-      window.location = '/login';
+// In api.js
+api.interceptors.request.use(
+  config => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
-    return Promise.reject(error);
-  }
+    return config;
+  },
+  error => Promise.reject(error)
 );
 
 // Trello API specific methods

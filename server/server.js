@@ -14,7 +14,9 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(cors({
   origin: 'http://localhost:3000',
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
@@ -71,17 +73,82 @@ const isAdmin = (req, res, next) => {
   }
 };
 
+app.get('/', (req, res) => {
+  res.send('API server is running');
+});
+
 // Admin-only webhook management routes
 app.post('/api/google/chat/webhooks', authenticateToken, isAdmin, async (req, res) => {
-  // Create webhook code...
+  try {
+    const { name, url, description } = req.body;
+    
+    if (!name || !url) {
+      return res.status(400).json({ message: 'Name and URL are required' });
+    }
+    
+    // Validate webhook URL format
+    if (!url.startsWith('https://chat.googleapis.com/v1/spaces/')) {
+      return res.status(400).json({ 
+        message: 'Invalid webhook URL format. Must start with https://chat.googleapis.com/v1/spaces/' 
+      });
+    }
+    
+    const webhook = new Webhook({
+      name,
+      url,
+      description: description || ''
+    });
+    
+    await webhook.save();
+    res.status(201).json(webhook);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 });
 
 app.put('/api/google/chat/webhooks/:id', authenticateToken, isAdmin, async (req, res) => {
-  // Update webhook code...
+  try {
+    const { name, url, description } = req.body;
+    
+    if (!name || !url) {
+      return res.status(400).json({ message: 'Name and URL are required' });
+    }
+    
+    // Validate webhook URL format
+    if (!url.startsWith('https://chat.googleapis.com/v1/spaces/')) {
+      return res.status(400).json({ 
+        message: 'Invalid webhook URL format. Must start with https://chat.googleapis.com/v1/spaces/' 
+      });
+    }
+    
+    const updatedWebhook = await Webhook.findByIdAndUpdate(
+      req.params.id,
+      { name, url, description },
+      { new: true, runValidators: true }
+    );
+    
+    if (!updatedWebhook) {
+      return res.status(404).json({ message: 'Webhook not found' });
+    }
+    
+    res.status(200).json(updatedWebhook);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 });
 
 app.delete('/api/google/chat/webhooks/:id', authenticateToken, isAdmin, async (req, res) => {
-  // Delete webhook code...
+  try {
+    const webhook = await Webhook.findByIdAndDelete(req.params.id);
+    
+    if (!webhook) {
+      return res.status(404).json({ message: 'Webhook not found' });
+    }
+    
+    res.status(200).json({ message: 'Webhook deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 });
 
 // Get all users (admin only)
@@ -256,6 +323,7 @@ app.get('/api/trello/boards/:boardId/lists', authenticateToken, async (req, res)
 // Google Chat webhook routes
 // Get all webhooks
 app.get('/api/google/chat/webhooks', authenticateToken, async (req, res) => {
+  console.log('Webhook GET request received');
   try {
     // Admins can see all webhooks
     if (req.user.role === 'admin') {
@@ -271,6 +339,7 @@ app.get('/api/google/chat/webhooks', authenticateToken, async (req, res) => {
     
     res.status(200).json(webhooks);
   } catch (error) {
+    console.error('Error in GET webhooks:', error);
     res.status(500).json({ message: error.message });
   }
 });
